@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>恒泰普瑞控制器 · BLE 调试面板</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#172033; --panel2:#1e2941;     --line:#2a3550; --fg:#e8eefc; --dim:#8ea0c4; --accent:#4da3ff;
+    --ok:#35d07f; --warn:#ffb020; --err:#ff5d5d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font-family:"Microsoft YaHei",-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px}
+  h1{font-size:20px;margin:0 0 4px;font-weight:600}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:18px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+         padding:16px;margin-bottom:16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  input,select,button{font-family:inherit;font-size:14px;border-radius:8px;
+        border:1px solid var(--line);background:var(--panel2);color:var(--fg);padding:9px 12px}
+  input{flex:1;min-width:230px}
+  button{cursor:pointer;transition:.15s;font-weight:600}
+  button:hover{filter:brightness(1.18)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .primary{background:var(--accent);border-color:var(--accent);color:#04101f}
+  .ghost{background:transparent}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:999px;
+        font-size:13px;font-weight:600;background:var(--panel2);border:1px solid var(--line)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--dim)}
+  .dot.on{background:var(--ok);box-shadow:0 0 9px var(--ok)}
+  .dot.busy{background:var(--warn);animation:blink .8s infinite}
+  .dot.err{background:var(--err)}
+  @keyframes blink{50%{opacity:.25}}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px}
+  .card{background:linear-gradient(180deg,#1b2740,#16203a);border:1px solid var(--line);
+        border-radius:14px;padding:16px 18px;position:relative;overflow:hidden}
+  .card .label{color:var(--dim);font-size:13px;margin-bottom:6px}
+  .card .val{font-size:40px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+  .card .unit{font-size:15px;color:var(--dim);margin-left:5px;font-weight:500}
+  .card .tag{position:absolute;top:12px;right:14px;font-size:11px;color:var(--dim);
+             border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+  .card.v  .val{color:#7fc4ff}
+  .card.t  .val{color:#8ff0c0}
+  .card.r  .val{color:#ffd479}
+  .card.a  .val{color:#ff9a8b}
+  .card.a.warn .val{color:#ff5d5d}
+  .mono{font-family:Consolas,"Courier New",monospace;font-size:12px;word-break:break-all;
+        line-height:1.65;color:#b9c9e6}
+  .kv{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #26314b;font-size:13px}
+  .kv:last-child{border:0}
+  .kv b{font-weight:600}
+  .okc{color:var(--ok)} .badc{color:var(--err)} .warnc{color:var(--warn)}
+  #log{height:190px;overflow:auto;background:#0c1220;border:1px solid var(--line);
+       border-radius:8px;padding:10px;font-family:Consolas,monospace;font-size:12px;
+       line-height:1.7;color:#9fb4d8;white-space:pre-wrap}
+  .hint{color:var(--dim);font-size:12px;margin-top:8px}
+  .err{color:var(--err);font-size:13px;margin-top:8px;min-height:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>恒泰普瑞 · 内置蓝牙控制器</h1>
+  <div class="sub">
+    Nordic UART 透传 ·
+    仪表帧 <span class="mono">C9 9C 94 05</span> → 电压/转把电压 ·
+    遥测帧 <span class="mono">CA AC 96 05</span> → 电流/转速
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <input id="addr" value="{{ default_address }}" placeholder="蓝牙地址 或 留空自动按名称扫描">
+      <button id="btnConn" class="primary">连接</button>
+      <button id="btnDisc" class="ghost">断开</button>
+      <select id="demo"><option value="">— 演示回放 —</option></select>
+      <span id="pill" class="pill"><span class="dot" id="dot"></span><span id="status">未连接</span></span>
+    </div>
+    <div id="err" class="err"></div>
+    <div class="hint">提示：模块同一时刻只允许 1 个中心设备连接；若手机小程序连着，请先在小程序里点「断开连接」。</div>
+  </div>
+
+  <div class="panel">
+    <div class="grid">
+      <div class="card v"><div class="tag">BE(63,64)/100</div>
+        <div class="label">电 压</div><div><span class="val" id="v">--</span><span class="unit">V</span></div></div>
+      <div class="card t"><div class="tag">BE(37,38)/200</div>
+        <div class="label">转把电压</div><div><span class="val" id="t">--</span><span class="unit">V</span></div></div>
+      <div class="card r"><div class="tag">BE(21,22)×20÷25</div>
+        <div class="label">转 速</div><div><span class="val" id="r">--</span><span class="unit">rpm</span></div></div>
+      <div class="card a" id="cardA"><div class="tag">BE(19,20)/10</div>
+        <div class="label">电 流</div><div><span class="val" id="a">--</span><span class="unit">A</span></div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="kv"><span>帧计数 / 速率</span><b><span id="frames">0</span> 帧 · <span id="hz">--</span> Hz</b></div>
+    <div class="kv"><span>设备</span><b id="devname">--</b></div>
+    <div class="kv"><span>仪表帧校验</span><b id="okB">--</b></div>
+    <div class="kv"><span>遥测帧校验</span><b id="okA">--</b></div>
+    <div class="kv"><span>转速原始值 (rotationalspeed)</span><b id="rawr">--</b></div>
+    <div style="margin-top:12px" class="label">原始帧</div>
+    <div class="mono" id="rawB">仪表帧: --</div>
+    <div class="mono" id="rawA">遥测帧: --</div>
+  </div>
+
+  <div class="panel">
+    <div class="label" style="color:var(--dim);font-size:13px;margin-bottom:8px">运行日志</div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let timer = null;
+
+function fmt(x, n = 1) { return (x === null || x === undefined) ? "--" : Number(x).toFixed(n); }
+
+async function post(url, body) {
+  try { await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"},
+                          body: JSON.stringify(body || {})}); }
+  catch (e) { console.error(e); }
+}
+
+function setStatus(st) {
+  const dot = $("dot"), pill = $("status");
+  if (st.connected) { dot.className = "dot on"; pill.textContent = st.demo ? "演示中" : "已连接"; }
+  else if (st.connecting) { dot.className = "dot busy"; pill.textContent = "连接中…"; }
+  else if (st.error) { dot.className = "dot err"; pill.textContent = "错误"; }
+  else { dot.className = "dot"; pill.textContent = "未连接"; }
+  $("err").textContent = st.error || "";
+}
+
+function setCheck(el, ok) {
+  if (ok === null || ok === undefined) { el.textContent = "--"; el.className = ""; }
+  else if (ok) { el.textContent = "通过 ✓"; el.className = "okc"; }
+  else { el.textContent = "失败 ✗"; el.className = "badc"; }
+}
+
+async function poll() {
+  try {
+    const st = await (await fetch("/api/state")).json();
+    setStatus(st);
+    $("v").textContent = fmt(st.voltage, 1);
+    $("t").textContent = fmt(st.throttle_voltage, 1);
+    $("r").textContent = st.rpm === null || st.rpm === undefined ? "--" : st.rpm;
+    $("a").textContent = fmt(st.ampere, 1);
+    $("cardA").classList.toggle("warn", (st.ampere || 0) >= 5);
+    $("frames").textContent = st.frames || 0;
+    $("hz").textContent = st.hz || "--";
+    $("devname").textContent = (st.name || "--") + (st.address ? "  (" + st.address + ")" : "");
+    $("rawr").textContent = st.rotationalspeed === null || st.rotationalspeed === undefined
+                            ? "--" : st.rotationalspeed;
+    setCheck($("okB"), st.dashboard_ok);
+    setCheck($("okA"), st.realtime_ok);
+    $("rawB").textContent = "仪表帧: " + (st.raw_dashboard || "--");
+    $("rawA").textContent = "遥测帧: " + (st.raw_realtime || "--");
+    $("log").textContent = (st.log || []).join("\n");
+    $("log").scrollTop = $("log").scrollHeight;
+  } catch (e) { /* 忽略瞬时错误 */ }
+}
+
+$("btnConn").onclick = () => post("/api/connect", {address: $("addr").value});
+$("btnDisc").onclick = () => post("/api/disconnect");
+$("demo").onchange = (e) => { if (e.target.value) post("/api/demo", {pattern: e.target.value}); };
+
+(async () => {
+  try {
+    const r = await (await fetch("/api/captures")).json();
+    (r.files || []).forEach(f => {
+      const o = document.createElement("option");
+      o.value = f; o.textContent = "回放 " + f;
+      $("demo").appendChild(o);
+    });
+  } catch (e) {}
+  poll();
+  timer = setInterval(poll, 400);
+})();
+</script>
+</body>
+</html>

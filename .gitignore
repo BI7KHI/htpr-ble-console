@@ -1,0 +1,57 @@
+# ─────────────────────────── Flutter / Dart ───────────────────────────
+flutter_console/.dart_tool/
+flutter_console/.packages
+flutter_console/build/
+flutter_console/.flutter-plugins
+flutter_console/.flutter-plugins-dependencies
+flutter_console/.idea/
+flutter_console/android/.gradle/
+flutter_console/android/local.properties
+flutter_console/android/app/debug/
+flutter_console/android/app/profile/
+flutter_console/android/app/release/
+flutter_console/android/key.properties
+flutter_console/ios/Pods/
+flutter_console/ios/.symlinks/
+flutter_console/ios/Flutter/Flutter.framework
+flutter_console/ios/Flutter/Flutter.podspec
+flutter_console/macos/Pods/
+flutter_console/linux/flutter/ephemeral/
+flutter_console/windows/flutter/ephemeral/
+flutter_console/.metadata.bak
+*.iml
+*.ipr
+*.iws
+
+# ─────────────────────────── Python ───────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# ─────────────────────────── 构建产物 / 密钥 ───────────────────────────
+# APK 通过 GitHub Release 分发，不进版本库
+*.apk
+*.aab
+*.jks
+*.keystore
+*.p12
+
+# ─────────────────────────── 运行日志 / 临时文件 ───────────────────────────
+*.log
+*.tmp
+*.bak
+.htpr/
+
+# ─────────────────────────── 系统 / 编辑器 ───────────────────────────
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
