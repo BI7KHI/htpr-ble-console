@@ -37,6 +37,8 @@
 </tr>
 </table>
 
+  > APK 不进版本库（`.gitignore` 已排除），仅通过 [Releases](../../releases/latest) 分发。
+
 > 截图由 `flutter_console/test/screenshots_test.dart` 用**真实 Widget 渲染**导出，与真机界面一致；
 > 该测试同时是布局溢出回归 —— 任何 `RenderFlex overflow` 都会让它失败。
 
@@ -270,7 +272,6 @@
 
 ```
 htpr-ble-console/
-├── htpr-console-v6.apk          # 交付产物（同时发布在 GitHub Release）
 ├── flutter_console/             # Flutter / Android 工程（Android Studio 可直接打开）
 │   ├── lib/
 │   │   ├── main.dart            # 外壳 · 仪表盘 · GNSS 页 · SpeedometerPainter
