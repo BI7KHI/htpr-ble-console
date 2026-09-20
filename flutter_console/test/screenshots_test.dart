@@ -265,6 +265,12 @@ void main() {
     await expectLater(find.byType(MaterialApp),
         matchesGoldenFile('goldens/5_settings_2.png'));
 
+    // 显示量程：实时预览 + 按峰值适配
+    await tester.drag(find.byType(ListView), const Offset(0, -620));
+    await _settle(tester);
+    await expectLater(find.byType(MaterialApp),
+        matchesGoldenFile('goldens/6_settings_range.png'));
+
     expect(tester.takeException(), isNull);
   });
 }

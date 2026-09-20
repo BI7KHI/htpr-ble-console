@@ -505,13 +505,38 @@ class _SettingsPageState extends State<SettingsPage> {
             onChanged: (v) => setState(() => s.speedFactor = v),
             onChangeEnd: (_) => s.save(),
           ),
-          const Divider(height: 22),
-          _rowInfo('仪表满量程', '${s.gaugeMax.toStringAsFixed(0)} km/h'),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
+          const Text(
+            '校准：控制器速度请用 GPS 实测对照微调；GPS 真速本身无需标定。',
+            style: TextStyle(color: Color(0xFF6E82A8), fontSize: 11.5),
+          ),
+        ]),
+        const SizedBox(height: 14),
+
+        // ---------------- 显示量程（图形幅度） ----------------
+        _card('显示量程（图形幅度）', [
+          const Text(
+            '不同控制器的最大速度与限流不同。这里只调整「图形满量程」——'
+            '决定仪表弧线和电流进度条画多满，不改变任何实测数值，也不下发到控制器。',
+            style: TextStyle(color: Color(0xFF8EA0C4), fontSize: 11.5),
+          ),
+          const SizedBox(height: 12),
+
+          _rowInfo('时速量程', '${s.gaugeMax.toStringAsFixed(0)} km/h'),
+          Slider(
+            value: s.gaugeMax.clamp(20.0, 200.0),
+            min: 20,
+            max: 200,
+            divisions: 90,
+            label: '${s.gaugeMax.toStringAsFixed(0)} km/h',
+            onChanged: (v) => setState(() => s.gaugeMax = v),
+            onChangeEnd: (_) => s.save(),
+          ),
           Wrap(
             spacing: 8,
+            runSpacing: 4,
             children: [
-              for (final v in const [40.0, 60.0, 80.0, 100.0, 120.0])
+              for (final v in const [25.0, 40.0, 60.0, 80.0, 100.0, 120.0])
                 ChoiceChip(
                   label: Text(v.toStringAsFixed(0)),
                   selected: (s.gaugeMax - v).abs() < 0.5,
@@ -522,10 +547,82 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
             ],
           ),
+
+          const Divider(height: 26),
+
+          _rowInfo('电流量程', '${s.currentMax.toStringAsFixed(0)} A'),
+          Slider(
+            value: s.currentMax.clamp(5.0, 120.0),
+            min: 5,
+            max: 120,
+            divisions: 115,
+            label: '${s.currentMax.toStringAsFixed(0)} A',
+            onChanged: (v) => setState(() => s.currentMax = v),
+            onChangeEnd: (_) => s.save(),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final v in const [
+                10.0,
+                15.0,
+                20.0,
+                25.0,
+                30.0,
+                40.0,
+                50.0,
+                80.0
+              ])
+                ChoiceChip(
+                  label: Text(v.toStringAsFixed(0)),
+                  selected: (s.currentMax - v).abs() < 0.5,
+                  onSelected: (_) {
+                    setState(() => s.currentMax = v);
+                    s.save();
+                  },
+                ),
+            ],
+          ),
+
+          const Divider(height: 26),
+
+          const Text('实时预览',
+              style: TextStyle(fontSize: 12.5, color: Color(0xFF8EA0C4))),
+          const SizedBox(height: 8),
+          _rangeBar('时速', s.speed, s.gaugeMax, 'km/h', const Color(0xFF4DA3FF)),
+          const SizedBox(height: 7),
+          _rangeBar('电流', s.current, s.currentMax, 'A', const Color(0xFFFF9A8B)),
+
+          const Divider(height: 26),
+
+          _rowInfo(
+              '本次实测峰值',
+              '${s.maxSpeed.toStringAsFixed(1)} km/h · '
+                  '${s.peakCurrent.toStringAsFixed(1)} A'),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => setState(() => s.autoFitRanges()),
+                icon: const Icon(Icons.auto_fix_high, size: 18),
+                label: const Text('按峰值适配'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => setState(() => s.resetPeaks()),
+                icon: const Icon(Icons.restart_alt, size: 18),
+                label: const Text('清零峰值'),
+              ),
+            ),
+          ]),
           const SizedBox(height: 6),
           const Text(
-            '校准：控制器速度请用 GPS 实测对照微调；GPS 真速本身无需标定。',
-            style: TextStyle(color: Color(0xFF6E82A8), fontSize: 11.5),
+            '「按峰值适配」取本次实测峰值的 1.15 倍，向上取整到 10 km/h / 5 A。'
+            '跑一段有代表性的路况后点一下，即可得到贴合该控制器的量程。',
+            style: TextStyle(color: Color(0xFF6E82A8), fontSize: 11),
           ),
         ]),
         const SizedBox(height: 14),
@@ -671,6 +768,39 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 24),
       ],
     );
+  }
+
+  /// 量程预览条：左标签 · 进度 · 右读数
+  Widget _rangeBar(
+      String label, double value, double max, String unit, Color color) {
+    final t = max <= 0 ? 0.0 : (value / max).clamp(0.0, 1.0);
+    return Row(children: [
+      SizedBox(
+        width: 32,
+        child: Text(label,
+            style: const TextStyle(fontSize: 11.5, color: Color(0xFF8EA0C4))),
+      ),
+      Expanded(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: t,
+            minHeight: 6,
+            backgroundColor: const Color(0xFF243050),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ),
+      const SizedBox(width: 8),
+      SizedBox(
+        width: 92,
+        child: Text(
+          '${value.toStringAsFixed(1)} / ${max.toStringAsFixed(0)} $unit',
+          textAlign: TextAlign.right,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF8EA0C4)),
+        ),
+      ),
+    ]);
   }
 
   Widget _rowInfo(String k, String v) => Padding(

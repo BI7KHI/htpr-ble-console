@@ -57,8 +57,11 @@ class AppState extends ChangeNotifier {
   String speedSourceNote = '等待数据';
   /// 当前是否处于滑行（油门松开或转速掉零）→ 融合模式改用 GNSS
   bool isCoasting = false;
-  /// 仪表满量程 km/h
+  // ---- 图形满量程（只影响绘制比例，不改变实测值、不下发）----
+  /// 仪表时速满量程 km/h
   double gaugeMax = 80;
+  /// 电流进度条满量程 A（不同控制器限流不同）
+  double currentMax = 25;
 
   /// 速度方式（默认融合）
   SpeedMode speedMode = SpeedMode.fusion;
@@ -83,6 +86,7 @@ class AppState extends ChangeNotifier {
   double tripKm = 0; // 本次里程
   double totalKm = 0; // 累计里程
   double maxSpeed = 0;
+  double peakCurrent = 0; // 本次实测峰值电流 A
   double _speedSum = 0;
   int _speedN = 0;
   Duration runTime = Duration.zero;
@@ -116,6 +120,7 @@ class AppState extends ChangeNotifier {
       rpm = r.rpm(rpmDivider.round()).toDouble();
       rotRaw = r.rotationalspeed.toDouble();
       controllerSpeed = effectiveK * rotRaw; // 转速推算速度
+      if (current > peakCurrent) peakCurrent = current;
     }
     _updateCalibration();
     _pickSpeed();
@@ -284,6 +289,26 @@ class AppState extends ChangeNotifier {
 
   double get avgSpeed => _speedN == 0 ? 0 : _speedSum / _speedN;
 
+  /// 按本次实测峰值自动适配图形量程（留 15% 余量，向上取整到 10 km/h / 5 A）
+  void autoFitRanges() {
+    if (maxSpeed > 1) {
+      gaugeMax = ((maxSpeed * 1.15) / 10).ceil() * 10.0;
+      gaugeMax = gaugeMax.clamp(20.0, 200.0);
+    }
+    if (peakCurrent > 0.5) {
+      currentMax = ((peakCurrent * 1.15) / 5).ceil() * 5.0;
+      currentMax = currentMax.clamp(5.0, 120.0);
+    }
+    notifyListeners();
+  }
+
+  /// 只清零峰值跟踪，不影响里程 / 能耗
+  void resetPeaks() {
+    maxSpeed = 0;
+    peakCurrent = 0;
+    notifyListeners();
+  }
+
   /// 剩余续航粗估：按「实际已用 Ah」与当前 SOC 反推
   double get rangeKm {
     if (speed < 1) return 0;
@@ -319,7 +344,8 @@ class AppState extends ChangeNotifier {
     calibK = sp.getDouble('calibK') ?? 0;
     calibSamples = sp.getInt('calibSamples') ?? 0;
     deviceAddress = sp.getString('deviceAddress') ?? deviceAddress;
-    gaugeMax = sp.getDouble('gaugeMax') ?? gaugeMax;
+    gaugeMax = (sp.getDouble('gaugeMax') ?? gaugeMax).clamp(20.0, 200.0);
+    currentMax = (sp.getDouble('currentMax') ?? currentMax).clamp(5.0, 120.0);
     notifyListeners();
   }
 
@@ -339,6 +365,7 @@ class AppState extends ChangeNotifier {
     await sp.setInt('calibSamples', calibSamples);
     await sp.setString('deviceAddress', deviceAddress);
     await sp.setDouble('gaugeMax', gaugeMax);
+    await sp.setDouble('currentMax', currentMax);
     notifyListeners();
   }
 

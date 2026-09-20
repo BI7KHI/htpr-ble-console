@@ -220,8 +220,9 @@ class _DashboardPageState extends State<DashboardPage> {
                   color: s.current >= 10
                       ? const Color(0xFFFF5D5D)
                       : const Color(0xFFFF9A8B),
-                  progress: (s.current / 25.0).clamp(0.0, 1.0),
-                  sub: '功率 ${(s.voltage * s.current).toStringAsFixed(0)}W')),
+                  progress: (s.current / s.currentMax).clamp(0.0, 1.0),
+                  sub: '功率 ${(s.voltage * s.current).toStringAsFixed(0)}W'
+                      ' · 量程 ${s.currentMax.toStringAsFixed(0)}A')),
         ]),
         const SizedBox(height: 12),
         const _ControlCard(),
